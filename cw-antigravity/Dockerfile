@@ -46,6 +46,9 @@ RUN mkdir -p /etc/apt/keyrings && \
     echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
     apt-get update && \
     apt-get install -y antigravity && \
+    # --- Report Version to Logs ---
+    echo "Installed Antigravity Version: $(dpkg-query -W -f='${Version}' antigravity)" && \
+    # --- Setup Wrapper ---
     dpkg-divert --add --rename --divert /usr/bin/antigravity.real /usr/bin/antigravity && \
     echo '#!/bin/bash' > /usr/bin/antigravity && \
     echo 'exec /usr/bin/antigravity.real --no-sandbox --disable-dev-shm-usage --disable-gpu "$@"' >> /usr/bin/antigravity && \    

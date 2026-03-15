@@ -24,3 +24,7 @@ steps:
 # in the build's artifact details in the Google Cloud console.
 images:
 - 'europe-west3-docker.pkg.dev/gcparty/container-images-repos/antigravity:latest'
+
+# --- Add this section ---
+options:
+  logging: CLOUD_LOGGING_ONLY

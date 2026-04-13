@@ -57,3 +57,4 @@ RUN mkdir -p /etc/apt/keyrings && \
 # 5. Runtime customization scripts
 COPY startup-scripts/ /etc/workstation-startup.d/
 RUN chmod +x /etc/workstation-startup.d/*
+

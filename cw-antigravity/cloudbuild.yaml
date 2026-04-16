@@ -23,7 +23,7 @@ steps:
 # This explicitly lists the image produced by the build, making it easy to see
 # in the build's artifact details in the Google Cloud console.
 images:
-- 'europe-west3-docker.pkg.dev/gcparty/container-images-repos/antigravity:latest'
+- 'europe-west3-docker.pkg.dev/mcp-lud-wew/container-images-repos/antigravity:latest'
 
 # --- Add this section ---
 options:

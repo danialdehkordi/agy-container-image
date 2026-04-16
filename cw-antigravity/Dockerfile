@@ -5,7 +5,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 # 1. Install System Dependencies and XFCE
 RUN curl -fsSL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor -o /usr/share/keyrings/yarnkey.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" | tee /etc/apt/sources.list.d/yarn.list > /dev/null && \ 
-    apt-get update && apt-get install -y \
+    apt-get update && \
+    # Add the --no-install-recommends flag here:
+    apt-get install -y --no-install-recommends \
     xvfb \
     xfce4 \
     xfce4-goodies \

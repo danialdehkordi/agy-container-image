@@ -65,4 +65,3 @@ else
     echo "No configuration file matching $CONFIG_DIR/host*.json found. Skipping service start."
     echo "SSH into this container after launch and follow the instructions at https://remotedesktop.google.com/headless to register the remote service for the first time."
 fi
-

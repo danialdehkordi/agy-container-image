@@ -2,53 +2,66 @@ FROM us-central1-docker.pkg.dev/cloud-workstations-images/predefined/base
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# 1. Install System Dependencies and XFCE
+# 1. Install Desktop Environment (XFCE) and requirements
 RUN apt-get update && apt-get install -y \
     xvfb \
     xfce4 \
-    xfce4-goodies \
-    xbase-clients \
+    desktop-base \
     dbus-x11 \
-    psmisc \
-    python3-psutil \
-    xserver-xorg-video-dummy \
+    wget \
+    curl \
+    gnupg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Google Chrome and Chrome Remote Desktop
+# 2. Install Google Chrome & Chrome Remote Desktop
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list > /dev/null && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] https://dl.google.com/linux/chrome-remote-desktop/deb stable main" | tee /etc/apt/sources.list.d/chrome-remote-desktop.list > /dev/null && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    wget -q -O /tmp/crd.deb https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb && \
     apt-get update && \
-    apt-get install -y google-chrome-stable chrome-remote-desktop && \
+    apt-get install -y google-chrome-stable /tmp/crd.deb && \
+    rm /tmp/crd.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Chrome Sandbox Fix
-# Chrome will crash in Docker without --no-sandbox. 
-# We divert the binary to force this flag.
+# 3. CRUCIAL FIXES FOR DOCKER
+# Fix A: Disable systemd dependency in CRD (Prevents the "stuck at starting" issue)
+RUN sed -i 's/USE_SYSTEMD = True/USE_SYSTEMD = False/g' /opt/google/chrome-remote-desktop/chrome-remote-desktop
+
+# Fix B: Fix Chrome Sandbox crashing in Docker
 RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/bin/google-chrome-stable && \
-    echo '#!/bin/bash' > /usr/bin/google-chrome-stable && \
-    echo 'exec /usr/bin/google-chrome-stable.real --no-sandbox --disable-dev-shm-usage "$@"' >> /usr/bin/google-chrome-stable && \
+    printf '#!/bin/bash\nexec /usr/bin/google-chrome-stable.real --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/bin/google-chrome-stable && \
     chmod +x /usr/bin/google-chrome-stable
 
-# 3. Mock systemctl
-RUN echo '#!/bin/bash' > /usr/bin/systemctl \
-    && echo 'echo "Mock systemctl: $@"' >> /usr/bin/systemctl \
-    && echo 'exit 0' >> /usr/bin/systemctl \
-    && chmod +x /usr/bin/systemctl
+# Add default user to the CRD group
+RUN usermod -aG chrome-remote-desktop user
 
-# 4. Install Antigravity
-RUN mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor -o /etc/apt/keyrings/antigravity-repo-key.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | tee /etc/apt/sources.list.d/antigravity.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y antigravity && \
-    dpkg-divert --add --rename --divert /usr/bin/antigravity.real /usr/bin/antigravity && \
-    echo '#!/bin/bash' > /usr/bin/antigravity && \
-    echo 'exec /usr/bin/antigravity.real --no-sandbox --disable-dev-shm-usage --disable-gpu "$@"' >> /usr/bin/antigravity && \    
-    chmod +x /usr/bin/antigravity
+# 4. Create the Cloud Workstations Startup Script
+# This runs every time the workstation boots to configure DBus and start the CRD daemon
+RUN printf '#!/bin/bash\n\
+set -e\n\
+TARGET_USER="user"\n\
+HOME_DIR="/home/$TARGET_USER"\n\
+CONFIG_DIR="$HOME_DIR/.config/chrome-remote-desktop"\n\
+\n\
+# Setup XFCE Session file\n\
+if [ ! -f "$HOME_DIR/.chrome-remote-desktop-session" ]; then\n\
+    echo "exec /usr/bin/startxfce4" > "$HOME_DIR/.chrome-remote-desktop-session"\n\
+    chown $TARGET_USER:$TARGET_USER "$HOME_DIR/.chrome-remote-desktop-session"\n\
+    chmod +x "$HOME_DIR/.chrome-remote-desktop-session"\n\
+fi\n\
+\n\
+# Setup DBus (Required for XFCE/CRD to talk to each other)\n\
+mkdir -p /var/run/dbus\n\
+rm -f /var/run/dbus/pid\n\
+dbus-daemon --system --fork\n\
+\n\
+# Start CRD service if the user has authenticated\n\
+if ls "$CONFIG_DIR"/host*.json >/dev/null 2>&1; then\n\
+    echo "Starting Chrome Remote Desktop..."\n\
+    sudo -H -u $TARGET_USER bash -c "/opt/google/chrome-remote-desktop/chrome-remote-desktop --start" &\n\
+else\n\
+    echo "CRD not configured yet. Run the start-host command in the terminal."\n\
+fi\n' > /etc/workstation-startup.d/010_start-crd.sh && \
+chmod +x /etc/workstation-startup.d/010_start-crd.sh
 
-# 5. Runtime customization scripts
-COPY startup-scripts/ /etc/workstation-startup.d/
-RUN chmod +x /etc/workstation-startup.d/*

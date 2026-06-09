@@ -33,17 +33,16 @@ RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/
     printf '#!/bin/bash\nexec /usr/bin/google-chrome-stable.real --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/bin/google-chrome-stable && \
     chmod +x /usr/bin/google-chrome-stable
 
-# Fix C: Manually create the CRD group and add default user to it
-RUN groupadd -f chrome-remote-desktop && \
-    usermod -aG chrome-remote-desktop user
-    
 # 4. Create the Cloud Workstations Startup Script
-# This runs every time the workstation boots to configure DBus and start the CRD daemon
+# This runs every time the workstation boots (Runtime)
 RUN printf '#!/bin/bash\n\
-set -e\n\
 TARGET_USER="user"\n\
 HOME_DIR="/home/$TARGET_USER"\n\
 CONFIG_DIR="$HOME_DIR/.config/chrome-remote-desktop"\n\
+\n\
+# Fix C: Manually create the CRD group and add the user at RUNTIME\n\
+groupadd -f chrome-remote-desktop\n\
+usermod -aG chrome-remote-desktop $TARGET_USER || echo "Warning: Could not add user to group"\n\
 \n\
 # Setup XFCE Session file\n\
 if [ ! -f "$HOME_DIR/.chrome-remote-desktop-session" ]; then\n\
@@ -65,4 +64,3 @@ else\n\
     echo "CRD not configured yet. Run the start-host command in the terminal."\n\
 fi\n' > /etc/workstation-startup.d/010_start-crd.sh && \
 chmod +x /etc/workstation-startup.d/010_start-crd.sh
-

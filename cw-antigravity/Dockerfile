@@ -33,9 +33,10 @@ RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/
     printf '#!/bin/bash\nexec /usr/bin/google-chrome-stable.real --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/bin/google-chrome-stable && \
     chmod +x /usr/bin/google-chrome-stable
 
-# Add default user to the CRD group
-RUN usermod -aG chrome-remote-desktop user
-
+# Fix C: Manually create the CRD group and add default user to it
+RUN groupadd -f chrome-remote-desktop && \
+    usermod -aG chrome-remote-desktop user
+    
 # 4. Create the Cloud Workstations Startup Script
 # This runs every time the workstation boots to configure DBus and start the CRD daemon
 RUN printf '#!/bin/bash\n\

@@ -68,9 +68,27 @@ mkdir -p "$CONFIG_DIR"
 chown -R $TARGET_USER:$TARGET_USER "$HOME_DIR"
 
 # --- 5. Start Service ---
+if [ -f /etc/chrome-remote-desktop/host.json ]; then
+    echo "Found system-wide registration. Syncing to user profile..."
+    
+    # 1. Compute the MD5 hash of the hostname
+    HOSTNAME_HASH=$(echo -n $(hostname) | md5sum | cut -d' ' -f1)
+    echo "Hostname hash: $HOSTNAME_HASH"
+    
+    # 2. Ensure user config directory exists
+    mkdir -p "$CONFIG_DIR"
+    
+    # 3. Copy the configuration file to the user profile
+    cp /etc/chrome-remote-desktop/host.json "$CONFIG_DIR/host#$HOSTNAME_HASH.json"
+    
+    # 4. Set correct permissions for the user
+    chown $TARGET_USER:$TARGET_USER "$CONFIG_DIR/host#$HOSTNAME_HASH.json"
+    chmod 600 "$CONFIG_DIR/host#$HOSTNAME_HASH.json"
+fi
+
 if ls "$CONFIG_DIR"/host*.json >/dev/null 2>&1; then
     echo "Starting Chrome Remote Desktop Service..."
-    sudo -H -u $TARGET_USER bash -c "/opt/google/chrome-remote-desktop/chrome-remote-desktop --start" &
+    sudo -H -u $TARGET_USER bash -c "/opt/google/chrome-remote-desktop/chrome-remote-desktop --start --child-process" &
 else
     echo "No configuration file matching $CONFIG_DIR/host*.json found. Skipping service start."
     echo "SSH into this container after launch and follow the instructions at https://remotedesktop.google.com/headless to register the remote service for the first time."

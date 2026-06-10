@@ -25,7 +25,7 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearm
     rm -rf /var/lib/apt/lists/*
 
 # 3. CRUCIAL FIXES FOR DOCKER
-# Fix A: Disable systemd dependency in CRD (Prevents the "stuck at starting" issue)
+# Fix A: Disable systemd dependency in CRD Python runtime
 RUN sed -i 's/USE_SYSTEMD = True/USE_SYSTEMD = False/g' /opt/google/chrome-remote-desktop/chrome-remote-desktop
 
 # Fix B: Fix Chrome Sandbox crashing in Docker
@@ -33,14 +33,18 @@ RUN dpkg-divert --add --rename --divert /usr/bin/google-chrome-stable.real /usr/
     printf '#!/bin/bash\nexec /usr/bin/google-chrome-stable.real --no-sandbox --disable-dev-shm-usage "$@"\n' > /usr/bin/google-chrome-stable && \
     chmod +x /usr/bin/google-chrome-stable
 
+# Fix C: Mock systemctl so start-host binary doesn't crash during registration
+RUN echo '#!/bin/bash' > /usr/bin/systemctl && \
+    echo 'exit 0' >> /usr/bin/systemctl && \
+    chmod +x /usr/bin/systemctl
+
 # 4. Create the Cloud Workstations Startup Script
-# This runs every time the workstation boots (Runtime)
 RUN printf '#!/bin/bash\n\
 TARGET_USER="user"\n\
 HOME_DIR="/home/$TARGET_USER"\n\
 CONFIG_DIR="$HOME_DIR/.config/chrome-remote-desktop"\n\
 \n\
-# Fix C: Manually create the CRD group and add the user at RUNTIME\n\
+# Manually create the CRD group and add the user at RUNTIME\n\
 groupadd -f chrome-remote-desktop\n\
 usermod -aG chrome-remote-desktop $TARGET_USER || echo "Warning: Could not add user to group"\n\
 \n\

@@ -39,6 +39,9 @@ RUN echo '#!/bin/bash' > /usr/bin/systemctl \
 # 4. Patch Chrome Remote Desktop to bypass systemd in container environments
 RUN sed -i 's|/run/systemd/system|/run/systemd/system_disabled_for_docker|g' /opt/google/chrome-remote-desktop/chrome-remote-desktop
 
+# 4b. Fix X11 permission wrapper to allow non-root users to start the dummy X server
+RUN mkdir -p /etc/X11 && echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
+
 # 5. Install Antigravity
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | gpg --dearmor -o /etc/apt/keyrings/antigravity-repo-key.gpg && \

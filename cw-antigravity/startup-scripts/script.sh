@@ -50,9 +50,19 @@ if [ ! -f /var/lib/dbus/machine-id ]; then
     dbus-uuidgen > /var/lib/dbus/machine-id
 fi
 
+# Ensure system-wide machine-id is populated and linked
+if [ ! -f /etc/machine-id ]; then
+    ln -sf /var/lib/dbus/machine-id /etc/machine-id
+fi
+
 mkdir -p /var/run/dbus
 rm -f /var/run/dbus/pid
 dbus-daemon --system --fork
+
+# Ensure X11 sockets directory exists and has correct sticky permissions
+mkdir -p /tmp/.X11-unix
+chmod 1777 /tmp/.X11-unix
+chown root:root /tmp/.X11-unix
 
 mkdir -p "$CONFIG_DIR"
 chown -R $TARGET_USER:$TARGET_USER "$HOME_DIR"

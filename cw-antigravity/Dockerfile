@@ -42,6 +42,12 @@ RUN sed -i 's|/run/systemd/system|/run/systemd/system_disabled_for_docker|g' /op
 # 4b. Fix X11 permission wrapper to allow non-root users to start the dummy X server
 RUN mkdir -p /etc/X11 && echo "allowed_users=anybody" > /etc/X11/Xwrapper.config
 
+# 4c. Configure Chrome Remote Desktop policies to allow firewall traversal (override base image restrictions)
+RUN mkdir -p /etc/opt/chrome/policies/managed /etc/chromium/policies/managed && \
+    rm -f /etc/opt/chrome/policies/managed/* /etc/chromium/policies/managed/* && \
+    echo '{ "RemoteAccessHostFirewallTraversal": true, "RemoteAccessHostAllowRelayedConnection": true }' > /etc/opt/chrome/policies/managed/crd_policy.json && \
+    echo '{ "RemoteAccessHostFirewallTraversal": true, "RemoteAccessHostAllowRelayedConnection": true }' > /etc/chromium/policies/managed/crd_policy.json
+
 # 5. Install Antigravity Tools (Antigravity 2.0, CLI and IDE)
 ARG AGY_CLI_URL="https://antigravity.google/cli/install.sh"
 ARG AGY_IDE_URL="https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.1.1-6123990880747520/linux-x64/Antigravity%20IDE.tar.gz"
